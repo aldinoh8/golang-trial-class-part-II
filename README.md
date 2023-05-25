@@ -130,7 +130,7 @@ Untuk dapat meng-akses dokumentasi yang dibuat oleh swagger kita perlu menambahk
 ```go
 r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 ```
-dan menjalankan perintah `swag ini` pada terminal
+dan menjalankan perintah `swag init` pada terminal
 
 Untuk membuat dokumentasi per-endpoint(bagaimana request response dll) kita perlu menambahkan comment untuk setiap endpoint handler kita
 ```go
