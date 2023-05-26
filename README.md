@@ -42,8 +42,8 @@ untuk memastikan server sudah berjalan, bisa coba akses `localhost:8080/ping`, j
 r.GET("/example", func(c *gin.Context) {
 	// logic di dalam endpoint.
 	c.JSON(http.StatusOK, gin.H{
-      "message": "OK",
-    })
+		"message": "OK",
+	})
 })
 ```
 
@@ -130,7 +130,12 @@ Untuk dapat meng-akses dokumentasi yang dibuat oleh swagger kita perlu menambahk
 ```go
 r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 ```
-dan menjalankan perintah `swag init` pada terminal
+dan menjalankan perintah `swag init` pada terminal jangan lupa juga untuk memastikan semua package sudah terimport, dengan menambahkan code dibawah pada bagian import di main.go
+```go
+_ "trial-class-api/docs"
+swaggerFiles "github.com/swaggo/files"
+ginSwagger "github.com/swaggo/gin-swagger"
+```
 
 Untuk membuat dokumentasi per-endpoint(bagaimana request response dll) kita perlu menambahkan comment untuk setiap endpoint handler kita
 ```go
@@ -153,3 +158,74 @@ func GetProductHandler(ctx *gin.Context) {
 }
 ```
 
+
+### Integrasi dengan notification service
+Integrasi dengan notification service dapat dilakukan dengan melakukan http request ke notification service. 
+Untuk mempermudah kita buat function terpisah yang nanti akan dipanggil setelah proses create order, yang menerima 3 buah parameter
+- email tujuan
+- alamat tujuan
+- nama produk
+pada function tersebut kita perlu membuat body yang ingin kita kirim ke notifiaction service
+```go
+func SendMail(email, address, productName string) {
+	mailData := map[string]string{
+		"email":        email,
+		"address":      address,
+		"product_name": productName,
+	}
+
+	marshallMailData, err := json.Marshal(mailData)
+	if err != nil {
+		return err
+	}
+
+	jsonStr := []byte(marshallMailData)
+}
+```
+Lalu kita buat objek request dan http client nya, barulah kita melakukan request ke service notification dengan `client.Do(request)`
+```go
+// dimana URL adalah alamat/endpoint untuk notification service 
+request, error := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+if error != nil {
+	return error
+}
+
+client := &http.Client{}
+response, error := client.Do(request)
+if error != nil {
+	return error
+}
+```
+
+### Notification Service
+Pada notification service kita perlu membuat hal yang sama seperti sebelumnya, yaitu inisiasi Gin, dan membuat routes untuk menerima request pengiriman email
+```go
+r := gin.Default()
+r.POST("/email", handlerSendEmail)
+r.Run(":8001") // pastikan port yang digunakan berbeda dengan service utama kita.
+```
+
+Pada function `handlerSendEmail` kita perlu memproses body yang dikirim dari service utama, dilanjutkan dengan mengirim email menggunakan package `gomail`
+Jangan lupa untuk menginstall package `gomail`
+```bash
+go get gopkg.in/gomail.v2
+```
+
+Dan lanjutkan untuk melakukan implementasi mengirim email sesuai dengan [dokumentasi](https://pkg.go.dev/gopkg.in/gomail.v2?utm_source=godoc#example-package) atau kurang lebih akan seperti
+```go
+m := gomail.NewMessage()
+m.SetHeader("From", "trial-class@mail.com")
+m.SetHeader("To", emailRequest.Email) // emailRequest didapat dari body yang dikirim oleh service utama
+
+m.SetHeader("Subject", "Trial Class Order")
+m.SetBody("text/html", fmt.Sprintf("terima kasih telah melakukan order pada mini ecommerce trial mini class, product dengan nama %s akan dikirimkan ke alamat %s secepatnya", emailRequest.ProductName, emailRequest.Address)) // emailRequest didapat dari body yang dikirim oleh service utama
+
+d := gomail.NewDialer("smtp.example.com", 587, "user", "123456")
+
+if err := d.DialAndSend(m); err != nil {
+	// Response Error Gin
+}
+
+// Continue to next Step
+// Response OK Gin
+```
