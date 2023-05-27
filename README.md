@@ -1,5 +1,5 @@
 # Golang-Trial-Class-Part-II
-# Trial Class: Mini Ecommerce
+## Trial Class: Mini Ecommerce
 
 ## Setup Database
 - Buatlah sebuah database dengan nama `trial-class-go`
